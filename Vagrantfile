@@ -1,25 +1,11 @@
+
+Vagrant.configure("2") do |config|
+
 # -------------------------------------------------------------
 # 1. PLUGIN CHECK AND INSTALLATION (vbguest and reload)
 # -------------------------------------------------------------
-required_plugins = %w(vagrant-vbguest vagrant-reload)
+  config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
 
-required_plugins.each do |plugin|
-  unless Vagrant.has_plugin?(plugin)
-    puts "Installing required plugin: #{plugin}..."
-    system("vagrant plugin install #{plugin}")
-  end
-end
-# -------------------------------------------------------------
-
-if plugins_installed
-  puts "\n*** REQUIRED VAGRANT PLUGINS WERE JUST INSTALLED. ***"
-  puts "Please run 'vagrant up diskjockey' again to continue the provisioning process."
-  # Exit cleanly so Vagrant does not proceed to configuration and error out.
-  exit 0
-end
-# -------------------------------------------------------------
-
-Vagrant.configure("2") do |config|
   config.vm.box = "windows-server-2019"
   config.vm.guest = :windows
   config.vm.communicator = "winrm"
@@ -112,5 +98,6 @@ Vagrant.configure("2") do |config|
     sql.vm.provision "shell", path: "scripts/provision-sql.ps1"
   end
 end
+
 
 
