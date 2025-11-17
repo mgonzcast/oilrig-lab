@@ -1,3 +1,16 @@
+# -------------------------------------------------------------
+# 1. PLUGIN CHECK AND INSTALLATION (vbguest and reload)
+# -------------------------------------------------------------
+required_plugins = %w(vagrant-vbguest vagrant-reload)
+
+required_plugins.each do |plugin|
+  unless Vagrant.has_plugin?(plugin)
+    puts "Installing required plugin: #{plugin}..."
+    system("vagrant plugin install #{plugin}")
+  end
+end
+# -------------------------------------------------------------
+
 Vagrant.configure("2") do |config|
   config.vm.box = "windows-server-2019"
   config.vm.guest = :windows
@@ -91,3 +104,4 @@ Vagrant.configure("2") do |config|
     sql.vm.provision "shell", path: "scripts/provision-sql.ps1"
   end
 end
+
