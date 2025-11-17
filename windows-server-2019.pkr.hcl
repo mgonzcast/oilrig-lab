@@ -115,12 +115,12 @@ build {
   }
   
   # REBOOT: Forces a reboot and waits for WinRM reconnection
-  # provisioner "windows-restart" {}
+  provisioner "windows-restart" {}
   
   # Install VirtualBox Guest Additions first
-  #provisioner "powershell" {
-  #  script = "scripts/install-guest-additions-cd.ps1"
-  #}
+  provisioner "powershell" {
+    script = "scripts/install-guest-additions-cd.ps1"
+  }
    
   
   # REBOOT: Forces a reboot and waits for WinRM reconnection
@@ -145,7 +145,7 @@ build {
   }
   
   # REBOOT: Forces a reboot and waits for WinRM reconnection
-  # provisioner "windows-restart" {}  
+  provisioner "windows-restart" {}  
 
   
   # 4. Cleanup script runs (Sysprep is now using /shutdown)
