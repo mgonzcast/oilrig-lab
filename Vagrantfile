@@ -18,7 +18,7 @@ Vagrant.configure("2") do |config|
   config.winrm.retry_delay = 10
   
   config.vm.synced_folder ".", "/vagrant", disabled: true
-  config.vbguest.auto_update = false  # Disable during provisioning to avoid conflicts
+  config.vbguest.auto_update = true  
   
   # Domain Controller - diskjockey
   config.vm.define "diskjockey" do |dc|
@@ -108,3 +108,4 @@ Vagrant.configure("2") do |config|
     sql.vm.provision "shell", path: "scripts/provision-sql.ps1"
   end
 end
+
