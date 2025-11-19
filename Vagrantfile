@@ -1,4 +1,3 @@
-
 Vagrant.configure("2") do |config|
 
 # -------------------------------------------------------------
@@ -14,23 +13,22 @@ Vagrant.configure("2") do |config|
   
   config.winrm.username = "vagrant"
   config.winrm.password = "vagrant"
-  #config.winrm.transport = :plaintext
-  #config.winrm.basic_auth_only = true
-
   config.winrm.timeout = 1800
   config.winrm.retry_limit = 30
   config.winrm.retry_delay = 10
   
-  # Disable default synced folder
   config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vbguest.auto_update = false  # Disable during provisioning to avoid conflicts
   
   # Domain Controller - diskjockey
   config.vm.define "diskjockey" do |dc|
-    dc.vm.hostname = "diskjockey"   
-    dc.vm.network "private_network", 
+    dc.vm.hostname = "diskjockey"    
+    dc.vm.network "private_network",  
       ip: "10.1.0.4",
-      virtualbox__intnet: "intnet-target"    
-    
+      netmask: "255.255.255.0",
+      virtualbox__intnet: "intnet-target",
+      auto_config: true
+      
     dc.vm.provider "virtualbox" do |vb|
       vb.name = "diskjockey"
       vb.memory = 2048
@@ -39,23 +37,35 @@ Vagrant.configure("2") do |config|
       vb.customize ["modifyvm", :id, "--vram", "128"]
       vb.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
       vb.customize ["modifyvm", :id, "--audio", "none"]
-    end   
-   
-      
+    end    
+    
+    # 1. Provision DC - REMOVED 'reboot: true' parameter
     dc.vm.provision "shell", path: "scripts/provision-dc.ps1"
     
-    # Reboot after DC promotion
+    # 2. Reload after DC promotion
     dc.vm.provision :reload
-        
-    # Optional: Post-reboot configuration
+    
+    # 3. Post-reboot verification
     dc.vm.provision "shell", inline: <<-SHELL
-      Write-Host "Waiting for system to stabilize after DC promotion..."
-      Start-Sleep -Seconds 30
-      Write-Host "Domain Controller is now ready!"
-      Get-ADDomain
+      Write-Host "Waiting for Active Directory to fully start..." -ForegroundColor Cyan
+      Start-Sleep -Seconds 60
+      
+      Write-Host "Verifying Domain Controller status..." -ForegroundColor Cyan
+      try {
+        Import-Module ActiveDirectory -ErrorAction Stop
+        $domain = Get-ADDomain
+        Write-Host "=====================================" -ForegroundColor Green
+        Write-Host "Domain Controller: READY" -ForegroundColor Green
+        Write-Host "Domain: $($domain.DNSRoot)" -ForegroundColor Green
+        Write-Host "NetBIOS: $($domain.NetBIOSName)" -ForegroundColor Green
+        Write-Host "=====================================" -ForegroundColor Green
+      } catch {
+        Write-Host "WARNING: Could not verify domain - $_" -ForegroundColor Yellow
+      }
     SHELL
   end
   
+ 
   # Exchange Server - waterfalls
   config.vm.define "waterfalls" do |exch|
     exch.vm.hostname = "waterfalls"
@@ -98,6 +108,3 @@ Vagrant.configure("2") do |config|
     sql.vm.provision "shell", path: "scripts/provision-sql.ps1"
   end
 end
-
-
-
