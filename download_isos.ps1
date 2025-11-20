@@ -15,6 +15,18 @@ $downloads = @(
         Url = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-x64-ENU.iso"
         FileName = "SQLServer2019-x64-ENU.iso"
     }
+    @{
+        Url = "https://software-static.download.prss.microsoft.com/pr/download/17763.107.101029-1455.rs5_release_svc_refresh_CLIENT_LTSC_EVAL_x64FRE_en-us.iso"
+        FileName = "17763.107.101029-1455.rs5_release_svc_refresh_CLIENT_LTSC_EVAL_x64FRE_en-us.iso"
+    }
+    @{
+        Url = "https://pkg.opnsense.org/releases/25.7/OPNsense-25.7-dvd-amd64.iso.bz2"
+        FileName = "PNsense-25.7-dvd-amd64.iso.bz2"
+    }
+    @{
+        Url = "https://kali.download/base-images/kali-2025.3/kali-linux-2025.3-installer-amd64.iso"
+        FileName = "kali-linux-2025.3-installer-amd64.iso"
+    }
 )
 
 # Set download directory (change this to your preferred location)
