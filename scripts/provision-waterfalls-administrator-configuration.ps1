@@ -70,6 +70,10 @@ if ($computerSystem.PartOfDomain -and $computerSystem.Domain -eq $DomainName) {
     }
 }
 
+#Without adding EWS Admins to local administrators, gosta can´t RDP to waterfalls
+Add-LocalGroupMember -Group administrators -member "BOOMBOX\EWS Admins"
+Write-Host "";Write-Host "Adding EWS Admins to Local Administrators"
+
 Write-Host "Granting BOOMBOX\Administrator explicit access to local WinRM group..."
 net localgroup "Remote Management Users" "BOOMBOX\Administrator" /add
 
@@ -111,6 +115,7 @@ try {
 catch {
     Write-Host "Error: Unable to set the primary group for $userName. Check permissions." -ForegroundColor Red
 }
+
 
 
 
