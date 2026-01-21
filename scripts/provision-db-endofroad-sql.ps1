@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Continue"
 
 Write-Host "`n===============================================" -ForegroundColor Green
-Write-Host "`nCreating sitedata DB on SQL Server: endofroads" -ForegroundColor Green
+Write-Host "`nCreating sitedata DB on SQL Server: endofroad" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Green
 
 $DomainName = "boombox.com"
@@ -100,5 +100,6 @@ Invoke-Command -ComputerName localhost -Credential $cred -ScriptBlock $ScriptBlo
 #  Write-Host "`nCreation of sitedata database finished" -ForegroundColor Green
 #  return (Receive.Job $Job).Result
 #}
+
 
 
