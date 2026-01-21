@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Continue"
 
 Write-Host "`n==============================================" -ForegroundColor Green
-Write-Host "`nConfiguring permissions SQL Server: endofroads" -ForegroundColor Green
+Write-Host "`nConfiguring permissions SQL Server: endofroad" -ForegroundColor Green
 Write-Host "==============================================" -ForegroundColor Green
 
 $DomainName = "boombox.com"
@@ -58,4 +58,5 @@ Write-Host "`nConfiguring SQL Admins permissions"
 Invoke-Sqlcmd -InputFile "C:\tmp\sql_configuration.sql" -Username $SQLAdminUser -Password $SQLAdminPassword
 
 Write-Host "`nConfiguration of SQL Server 2019 finished" -ForegroundColor Green
+
 
