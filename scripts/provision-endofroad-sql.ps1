@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Continue"
 
 Write-Host "=====================================" -ForegroundColor Green
-Write-Host "Provisioning SQL Server: endofroads" -ForegroundColor Green
+Write-Host "Provisioning SQL Server: endofroad" -ForegroundColor Green
 Write-Host "=====================================" -ForegroundColor Green
 
 $DomainName = "boombox.com"
@@ -39,4 +39,5 @@ New-NetFirewallRule -DisplayName "SQL Server" -Direction Inbound -Protocol TCP -
 
 
 Write-Host "`nInstallation SQL Server 2019 finished" -ForegroundColor Green
+
 
