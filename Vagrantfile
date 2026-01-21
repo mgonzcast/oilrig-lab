@@ -167,11 +167,11 @@ Vagrant.configure("2") do |config|
   end
 
   # ------------------------------------------------------------- 
-  # SQL Server - endofroads
+  # SQL Server - endofroad
   # ------------------------------------------------------------- 
 
-  config.vm.define "endofroads" do |sql|
-    sql.vm.hostname = "endofroads"
+  config.vm.define "endofroad" do |sql|
+    sql.vm.hostname = "endofroad"
     sql.vm.network "private_network", 
       ip: "10.1.0.7",
       netmask: "255.255.255.0",
@@ -179,7 +179,7 @@ Vagrant.configure("2") do |config|
       auto_config: false
     
     sql.vm.provider "virtualbox" do |vb|
-      vb.name = "endofroads"
+      vb.name = "endofroad"
       vb.memory = 4096
       vb.cpus = 2
       vb.linked_clone = false
@@ -189,21 +189,21 @@ Vagrant.configure("2") do |config|
       vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "1", "--device", "0", "--type", "dvddrive", "--medium", "isos/SQLServer2019-x64-ENU.iso"]
     end
              
-    sql.vm.provision "shell", path: "scripts/provision-endofroads-join-domain.ps1", privileged: true
+    sql.vm.provision "shell", path: "scripts/provision-endofroad-join-domain.ps1", privileged: true
     
     sql.vm.provision "reload"
     
-    sql.vm.provision "provision-sql", type: "shell", path: "scripts/provision-endofroads-sql.ps1", privileged: true
+    sql.vm.provision "provision-sql", type: "shell", path: "scripts/provision-endofroad-sql.ps1", privileged: true
     
     sql.vm.provision "reload"
     
-    sql.vm.provision "configure-sql", type: "shell", path: "scripts/configure-endofroads-sql.ps1", privileged: true
+    sql.vm.provision "configure-sql", type: "shell", path: "scripts/configure-endofroad-sql.ps1", privileged: true
     
     sql.vm.provision "reload"
     
     sql.vm.provision "file", source: "minfac.csv", destination: "C:\\tmp\\minfac.csv"
     
-    sql.vm.provision "provision-db", type: "shell", path: "scripts/provision-db-endofroads-sql.ps1", privileged: true 
+    sql.vm.provision "provision-db", type: "shell", path: "scripts/provision-db-endofroad-sql.ps1", privileged: true 
     
   end
   
@@ -244,3 +244,4 @@ Vagrant.configure("2") do |config|
   
   
 end
+
