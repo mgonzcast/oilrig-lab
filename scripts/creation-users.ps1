@@ -20,24 +20,29 @@ do {
 
 		New-ADUser -Name gosta -UserPrincipalName gosta@boombox.com -Path $path -Enabled $True `
 		-AccountPassword $(ConvertTo-SecureString 'd0ntGoCH4ingW8trfalls' -AsPlainText -Force) -passThru
-
+		Set-ADUser gosta -PasswordNeverExpires $true
+		
 		Add-ADGroupMember -Identity "EWS Admins" -Members gosta
-
+		
 		New-ADUser -Name tous -UserPrincipalName tous@boombox.com -Path $path -Enabled $True `
 		-AccountPassword $(ConvertTo-SecureString 'd0ntGoCH4ingW8trfalls' -AsPlainText -Force) -passThru
-
+		Set-ADUser tous -PasswordNeverExpires $true
+		
 		Add-ADGroupMember -Identity "EWS Admins" -Members tous
 		Add-ADGroupMember -Identity "SQL Admins" -Members tous
-
+		
 		New-ADUser -Name mariam -UserPrincipalName mariam@boombox.com -Path $path -Enabled $True `
 		-AccountPassword $(ConvertTo-SecureString 'd0ntGoCH4ingW8trfalls' -AsPlainText -Force) -passThru
+		Set-ADUser mariam -PasswordNeverExpires $true
 		 
 		New-ADUser -Name shiroyeh -UserPrincipalName shiroyeh@boombox.com -Path $path -Enabled $True `
 		-AccountPassword $(ConvertTo-SecureString 'd0ntGoCH4ingW8trfalls' -AsPlainText -Force) -passThru
-
+		Set-ADUser shiroyeh -PasswordNeverExpires $true
+		
 		New-ADUser -Name shiroyeh_admin -UserPrincipalName shiroyeh_admin@boombox.com -Path $path -Enabled $True `
 		-AccountPassword $(ConvertTo-SecureString 'd0ntGoCH4ingW8trfalls' -AsPlainText -Force) -passThru
-
+		Set-ADUser shiroyeh_admin -PasswordNeverExpires $true
+		
 		Add-ADGroupMember -Identity "Domain Admins" -Members shiroyeh_admin
 		return $true
 	    }
@@ -55,6 +60,7 @@ do {
 	    return $false
 	}
 } while ($true)
+
 
 
 
