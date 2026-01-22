@@ -4,7 +4,7 @@ https://github.com/center-for-threat-informed-defense/adversary_emulation_librar
 
 Most information for installing is in the quickstart script (either the ps1 or sh script)
 
-You need to download all the installers and isos with the scripts:
+You need to download all the installers and isos using the following scripts:
 
 ```
 download_isos.sh
