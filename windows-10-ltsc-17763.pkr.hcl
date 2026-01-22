@@ -47,7 +47,9 @@ source "virtualbox-iso" "windows-10" {
   cpus                 = var.cpus
   memory               = var.memory
   disk_size            = var.disk_size
-  
+
+  chipset              = "ich9"
+  hard_drive_interface = "sata"
   headless             = false
   
   communicator         = "winrm"
