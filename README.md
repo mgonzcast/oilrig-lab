@@ -21,7 +21,7 @@ vagrant box add --name windows-server-2019 packer/windows-server-2019-virtualbox
 vagrant box add --name windows-10-ltsc-17763 packer/windows-10-ltsc-17763-virtualbox.box
 
 vagrant up diskjockey 
-vagrant up endofroads
+vagrant up endofroad
 vagrant up waterfalls
 vagrant up theblock
 
