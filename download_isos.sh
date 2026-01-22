@@ -59,7 +59,7 @@ for filename in "${!downloads[@]}"; do
     
     # Download based on available tool
     if [ "$DOWNLOADER" == "curl" ]; then
-        if curl -L -o "$destination" --progress-bar "$url"; then
+        if curl -k -L -o "$destination" --progress-bar "$url"; then
             file_size=$(du -h "$destination" | cut -f1)
             echo -e "  ${GREEN}Download complete! Size: $file_size${NC}\n"
         else
@@ -68,7 +68,7 @@ for filename in "${!downloads[@]}"; do
             [ -f "$destination" ] && rm -f "$destination"
         fi
     else
-        if wget -O "$destination" --show-progress "$url"; then
+        if wget --no-check-certificate -O "$destination" --show-progress "$url"; then
             file_size=$(du -h "$destination" | cut -f1)
             echo -e "  ${GREEN}Download complete! Size: $file_size${NC}\n"
         else
