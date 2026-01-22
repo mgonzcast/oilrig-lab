@@ -81,8 +81,8 @@ Vagrant.configure("2") do |config|
       vb.customize ["modifyvm", :id, "--vram", "128"]
       vb.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
       vb.customize ["modifyvm", :id, "--audio", "none"]
-      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "1", "--device", "0", "--type", "dvddrive", "--medium", "isos/ExchangeServer2019-x64-CU11.ISO"]
-      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "1", "--device", "1", "--type", "dvddrive", "--medium", "isos/SQLServer2019-x64-ENU.iso"]
+      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "0", "--device", "0", "--type", "dvddrive", "--medium", "isos/ExchangeServer2019-x64-CU11.iso"]
+      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "0", "--device", "1", "--type", "dvddrive", "--medium", "isos/SQLServer2019-x64-ENU.iso"]
     end
     
     exch.vm.provision "shell", path: "scripts/provision-waterfalls-join-domain.ps1", privileged: true
@@ -236,6 +236,7 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
 
 
