@@ -129,11 +129,8 @@ Vagrant.configure("2") do |config|
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefautDomainName -value $Domain  
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoLogonCount -Value "1" 
       
-      Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce' -Name ScriptLogon -Value "powershell.exe -ExecutionPolicy Bypass -File C:\tmp\provision-waterfalls-exchange.ps1"
+      Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce' -Name ScriptLogon -Value "powershell.exe -ExecutionPolicy Bypass -File C:\tmp\provision-waterfalls-exchange.ps1"         
       
-      #New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name ScriptLogon -Value "powershell.exe -ExecutionPolicy Bypass -File C:\tmp\provision-waterfalls-exchange.ps1" -PropertyType String
-      
-       
     POWERSHELL
     
     exch.vm.provision "reload"
@@ -141,29 +138,20 @@ Vagrant.configure("2") do |config|
     exch.vm.provision "remove-autologon", type: "shell", privileged: "true", inline: <<-'POWERSHELL'       
       
       # We wait to the autologon and provisioning script for exchange to be launched
-      #Start-Sleep -s 1800 
+      Start-Sleep -s 1800 
       
       # We disable autologon 
       
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -Value "0"   
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultUserName -Value "" 
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultPassword -Value ""
-      Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefautDomainName -value ""  
-      
-      #Unregister-ScheduledTask -TaskName "RunScriptAtLogon" -Confirm:$false    
+      Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefautDomainName -value ""             
       
       # We wait until the Exchange installation might have finished at least 2 hours (30 minutes first Start-Sleep + 150 minutes second Start-Sleep )
-      #Start-Sleep -s 5400 
+      Start-Sleep -s 5400 
        
-    POWERSHELL
-    
-    #exch.vm.provision "reload"
-        
-    # exch.vm.provision "file", source: "scripts/provision-waterfalls-exchange.ps1", destination: "C:\\tmp\\provision-waterfalls-exchange.ps1"
-    
-    # exch.vm.provision "install-exchange", type: "shell", privileged: "true", path: "scripts/provision-waterfalls-exchange.ps1"     
-      
-    
+    POWERSHELL   
+  
   end
 
   # ------------------------------------------------------------- 
@@ -244,4 +232,5 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
