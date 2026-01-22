@@ -17,8 +17,8 @@ And then you can run the quickstart script or manually run
 packer build windows-server-2019.pkr.hcl
 packer build windows-10-ltsc-17763.pkr.hcl      
 
-vagrant box add --name windows-server-2019 packer/windows-server-2019-virtualbox.box
-vagrant box add --name windows-10-ltsc-17763 packer/windows-10-ltsc-17763-virtualbox.box
+vagrant box add --name windows-server-2019 windows-server-2019-virtualbox.box
+vagrant box add --name windows-10-ltsc-17763 windows-10-ltsc-17763-virtualbox.box
 
 vagrant up diskjockey 
 vagrant up endofroad
