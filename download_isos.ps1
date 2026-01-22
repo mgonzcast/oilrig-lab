@@ -9,7 +9,7 @@ $downloads = @(
     },
     @{
         Url = "https://download.microsoft.com/download/5/3/e/53e75dbd-ca33-496a-bd23-1d861feaa02a/ExchangeServer2019-x64-CU11.ISO"
-        FileName = "ExchangeServer2019-CU11.iso"
+        FileName = "ExchangeServer2019-x64-CU11.iso"
     },
     @{
         Url = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-x64-ENU.iso"
