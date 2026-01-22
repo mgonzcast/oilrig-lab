@@ -101,28 +101,14 @@ Vagrant.configure("2") do |config|
     
     exch.vm.provision "reload"
     
-    #exch.vm.provision "autologon-script", type: "shell", privileged: "true", inline: <<-'POWERSHELL'        
-      
-      	#$Action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\tmp\provision-waterfalls-exchange.ps1"'
-	#$Trigger = New-ScheduledTaskTrigger -AtLogOn
-	#$User = "BOOMBOX\Administrator" # Or a specific user
-	#$Principal = New-ScheduledTaskPrincipal -UserId $User -LogonType Interactive -RunLevel Highest
-
-	#Register-ScheduledTask -TaskName "RunScriptAtLogon" -Action $Action -Trigger $Trigger -Principal $Principal	      
-       
-    #POWERSHELL
+    exch.vm.provision "file", source: "web.config", destination: "C:\\tmp\\web.config"
     
     exch.vm.provision "autologon", type: "shell", privileged: "true", inline: <<-'POWERSHELL'
     
       $Domain = "boombox.com"
       $User = "Administrator@boombox.com"
       $Password = "vagrant"
-      
-      #New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -Value "1" -PropertyType String
-      #New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultUserName -Value "$User" -PropertyType String
-      #New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultPassword -Value $Password -PropertyType String
-      #New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefautDomainName -value $Domain -PropertyType String  
-       
+             
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -Value "1" 
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultUserName -Value "$User" 
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultPassword -Value $Password
@@ -137,8 +123,20 @@ Vagrant.configure("2") do |config|
     
     exch.vm.provision "remove-autologon", type: "shell", privileged: "true", inline: <<-'POWERSHELL'       
       
-      # We wait to the autologon and provisioning script for exchange to be launched
-      Start-Sleep -s 1800 
+      # We back up file in Exchange configuration once is created
+      
+      $file = "%ExchaneInstallPAth%ClientAccess\ews\web.config"
+      $backup = "%ExchaneInstallPAth%ClientAccess\ews\web.config.bkp"
+      
+      while (-not (Test-Path -Path $file)){
+         Start-Sleep -s 60
+      }
+
+      Copy-Item $file -Destination $backup
+      
+      # We update web.config configuration with the entry <add assembly="Microsoft.Exchange.Diagnostics" ... otherwise payloads from Oilrig won´t work
+      
+      Copy-Item "C:\tmp\web.config" -Destination $file
       
       # We disable autologon 
       
@@ -222,6 +220,12 @@ Vagrant.configure("2") do |config|
     client.vm.provision "shell", path: "scripts/provision-theblock-join-domain.ps1", privileged: true
     
     client.vm.provision "reload"
+
+    client.vm.provision "configure-rdp", type: "shell", privileged: "true", inline: <<-'POWERSHELL'           
+    
+      Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Terminal Server Client' -Name Default    
+       
+    POWERSHELL
     
     client.vm.provision "shell", path: "scripts/provision-theblock-provision.ps1", privileged: true
     
@@ -232,5 +236,6 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
 
