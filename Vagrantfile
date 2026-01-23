@@ -223,7 +223,7 @@ Vagrant.configure("2") do |config|
 
     client.vm.provision "configure-rdp", type: "shell", privileged: "true", inline: <<-'POWERSHELL'           
     
-      Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Terminal Server Client' -Name Default    
+      New-Item -Path 'HKCU:\SOFTWARE\Microsoft\Terminal Server Client\Default' -Force    
        
     POWERSHELL
     
@@ -236,6 +236,7 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
 
 
