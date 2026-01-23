@@ -225,7 +225,74 @@ Vagrant.configure("2") do |config|
 
     client.vm.provision "configure-rdp", type: "shell", privileged: "true", inline: <<-'POWERSHELL'           
     
-      New-Item -Path 'HKCU:\SOFTWARE\Microsoft\Terminal Server Client\Default' -Force    
+      # gosta user hasn´t logged in yet. So We add to the Default user the registry for Default Terminal Server Client searched in the Oilrig Operation
+            
+    	$userName = "gosta"
+    	$domain = "BOOMBOX"
+    	$fullAccount = "$domain\$userName"
+    
+    	# Get Gosta User's SID
+    	try {
+    	    $sid = (New-Object System.Security.Principal.NTAccount($fullAccount)).Translate([System.Security.Principal.SecurityIdentifier]).Value
+    	    Write-Host "Target SID identified: $sid" -ForegroundColor Cyan
+    	} catch {
+    	    Write-Warning "Could not find SID for $fullAccount. This is fine if the user has never logged in."
+    	}
+    
+    	# Forcefully Delete Existing gosta Profile (if it exists)
+    	if ($sid) {
+    	    $existingProfile = Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.SID -eq $sid }
+    	    
+    	    if ($existingProfile) {
+    		Write-Host "Existing profile found for $fullAccount. Deleting..." -ForegroundColor Yellow
+    		# This removes the folder AND the registry entry in HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList
+    		Remove-CimInstance -InputObject $existingProfile
+    		Write-Host "Profile wiped successfully." -ForegroundColor Green
+    	    } else {
+    		Write-Host "No existing profile found for $userName. Proceeding to template modification."
+    	    }
+    	}
+            
+        	# Path to the Default User's registry hive
+    	$defaultHivePath = "C:\Users\Default\NTUSER.DAT"
+    
+    	# Check if the file exists (it's hidden/system, but Test-Path handles it)
+    	if (-not (Test-Path $defaultHivePath)) {
+    	    Write-Error "Default NTUSER.DAT not found."
+    	    return
+    	}
+    
+    	Write-Host "Loading Default User Hive..." -ForegroundColor Cyan
+    
+    	# Mount the hive into HKEY_USERS under a temporary name 'DefaultTemplate'
+    	# Using 'reg.exe' is the most reliable way to handle the mount
+    	reg load "HKU\DefaultTemplate" $defaultHivePath
+    
+    	try {
+    	    # Define the target path within the mounted hive
+    	    $targetPath = "Registry::HKEY_USERS\DefaultTemplate\SOFTWARE\Microsoft\Terminal Server Client\Default"
+    
+    	    # Create the key if it doesn't exist
+    	    if (-not (Test-Path $targetPath)) {
+    		Write-Host "Creating key in Default User profile..."
+    		New-Item -Path $targetPath -Force | Out-Null
+    		Write-Host "Successfully added key to template." -ForegroundColor Green
+    	    } else {
+    		Write-Host "Key already exists in the template." -ForegroundColor Yellow
+    	    }
+    	}
+    	catch {
+    	    Write-Error "An error occurred: $($_.Exception.Message)"
+    	}
+    	finally {
+    	    # Crucial: Release the file lock and unload
+    	    # We call the Garbage Collector to ensure PowerShell has dropped the handle
+    	    [gc]::Collect()
+    	    [gc]::WaitForPendingFinalizers()
+    	    
+    	    Write-Host "Unloading Default User Hive..." -ForegroundColor Cyan
+    	    reg unload "HKU\DefaultTemplate"
+    	}   
        
     POWERSHELL
     
@@ -238,6 +305,7 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
 
 
