@@ -42,8 +42,11 @@ do {
 		New-ADUser -Name shiroyeh_admin -UserPrincipalName shiroyeh_admin@boombox.com -Path $path -Enabled $True `
 		-AccountPassword $(ConvertTo-SecureString 'd0ntGoCH4ingW8trfalls' -AsPlainText -Force) -passThru
 		Set-ADUser shiroyeh_admin -PasswordNeverExpires $true
-		
 		Add-ADGroupMember -Identity "Domain Admins" -Members shiroyeh_admin
+
+        Set-ADUser vagrant -PasswordNeverExpires $true
+		Set-ADUser Administrator -PasswordNeverExpires $true
+		
 		return $true
 	    }
 	}
@@ -60,6 +63,7 @@ do {
 	    return $false
 	}
 } while ($true)
+
 
 
 
