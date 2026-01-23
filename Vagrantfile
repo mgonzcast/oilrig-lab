@@ -124,18 +124,20 @@ Vagrant.configure("2") do |config|
     exch.vm.provision "remove-autologon", type: "shell", privileged: "true", inline: <<-'POWERSHELL'       
       
       # We back up file in Exchange configuration once is created
+      $file = "C:\Program Files\Microsoft\Exchange Server\V15\ClientAccess\exchweb\ews\web.config"
+      $backup = "C:\Program Files\Microsoft\Exchange Server\V15\ClientAccess\exchweb\ews\web.config.bkp"
       
-      $file = "%ExchaneInstallPAth%ClientAccess\ews\web.config"
-      $backup = "%ExchaneInstallPAth%ClientAccess\ews\web.config.bkp"
+      Write-Host "Esperando a que Exchange se instale..." -ForegroundColor Cyan
       
-      while (-not (Test-Path -Path $file)){
-         Start-Sleep -s 60
+      while (-not (Test-Path -Path $file)) {
+          Start-Sleep -s 60
       }
+      
+      Write-Host "Modificando web.config Exchange..." -ForegroundColor Cyan
 
       Copy-Item $file -Destination $backup
       
-      # We update web.config configuration with the entry <add assembly="Microsoft.Exchange.Diagnostics" ... otherwise payloads from Oilrig won´t work
-      
+      # We update web.config configuration with the entry <add assembly="Microsoft.Exchange.Diagnostics" ...
       Copy-Item "C:\tmp\web.config" -Destination $file
       
       # We disable autologon 
@@ -236,6 +238,7 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
 
 
