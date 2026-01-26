@@ -192,6 +192,35 @@ Vagrant.configure("2") do |config|
     sql.vm.provision "file", source: "minfac.csv", destination: "C:\\tmp\\minfac.csv"
     
     sql.vm.provision "provision-db", type: "shell", path: "scripts/provision-db-endofroad-sql.ps1", privileged: true 
+    sql.vm.provision "file", source: "guest.bmp", destination: "C:\\tmp\\guest.bmp"
+    
+    sql.vm.provision "create-guest-bmp", type: "shell", privileged: "true", inline: <<-'POWERSHELL'
+    
+      # In case we are running Windows Server without GUI we are missing the guest.bmp under C:\ProgramData\Microsoft\User Account Pictures\guest.bmp  
+          
+    	# Define paths
+    	$destination = "C:\ProgramData\Microsoft\User Account Pictures\guest.bmp"
+    	$source = "C:\tmp\guest.bmp"
+    
+    	# Ensure the source file actually exists before we try to copy it
+    	if (Test-Path $source) {
+    	    
+    	    # Check if the destination already exists; if so, delete it
+    	    if (Test-Path $destination) {
+    		Write-Host "Found existing guest.bmp at destination. Removing it..." -ForegroundColor Cyan
+    		Remove-Item -Path $destination -Force
+    	    }
+    	    # Perform the copy
+    	    Write-Host "Copying $source to $destination" -ForegroundColor Cyan
+    	    
+    	    if (-not (Test-Path "C:\ProgramData\Microsoft\User Account Pictures")) {
+     		New-Item -Path "C:\ProgramData\Microsoft\User Account Pictures" -ItemType Directory -Force
+    	    }
+    	    Copy-Item -Path $source -Destination $destination -Force
+    	    Write-Host "Copy complete!" -ForegroundColor Green
+    	}      
+
+    POWERSHELL
     
   end
   
@@ -305,6 +334,7 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
 
 
