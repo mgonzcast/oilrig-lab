@@ -127,13 +127,13 @@ Vagrant.configure("2") do |config|
       $file = "C:\Program Files\Microsoft\Exchange Server\V15\ClientAccess\exchweb\ews\web.config"
       $backup = "C:\Program Files\Microsoft\Exchange Server\V15\ClientAccess\exchweb\ews\web.config.bkp"
       
-      Write-Host "Esperando a que Exchange se instale..." -ForegroundColor Cyan
+      Write-Host "Waiting for Exchange being installed..." -ForegroundColor Cyan
       
       while (-not (Test-Path -Path $file)) {
           Start-Sleep -s 60
       }
       
-      Write-Host "Modificando web.config Exchange..." -ForegroundColor Cyan
+      Write-Host "Modifying web.config configuration file of Exchange..." -ForegroundColor Cyan
 
       Copy-Item $file -Destination $backup
       
@@ -334,6 +334,7 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
 
 
