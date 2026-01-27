@@ -325,7 +325,7 @@ Vagrant.configure("2") do |config|
        
     POWERSHELL
     
-    client.vm.provision "shell", path: "scripts/provision-theblock-provision.ps1", privileged: true
+    client.vm.provision "provision-theblock", type: "shell", path: "scripts/provision-theblock-provision.ps1", privileged: true
     
     client.vm.provision "reload"
     
@@ -334,6 +334,7 @@ Vagrant.configure("2") do |config|
   
   
 end
+
 
 
 
