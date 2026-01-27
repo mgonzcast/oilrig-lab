@@ -9,6 +9,7 @@ $DCAddress = "10.1.0.4"
 $ClientIPAddress = "10.1.0.5"
 $DomainAdmin = "BOOMBOX\Administrator"
 $DomainPassword = "vagrant"
+$AdapterName = "Ethernet"
 
 # Wait for DC to be available
 Write-Host "Waiting for Domain Controller at $DCAddress..." -ForegroundColor Cyan
@@ -49,11 +50,28 @@ if ($computerSystem.PartOfDomain -and $computerSystem.Domain -eq $DomainName) {
     }
 }
 
+# REVERT DNS TO DHCP so RSAT Capabilities can be installed
+Write-Host "Reverting DNS on '$AdapterName' to DHCP for internet access..." -ForegroundColor Cyan
+try {
+    # This resets the DNS server addresses to be obtained via DHCP
+    Set-DnsClientServerAddress -InterfaceAlias $AdapterName -ResetServerAddresses -ErrorAction Stop
+    
+    # Optional: Force a DNS registration refresh
+    Register-DnsClient
+    
+    Write-Host "DNS reverted to DHCP. Waiting 5s for network to stabilize..." -ForegroundColor Green
+    Start-Sleep -Seconds 5
+} catch {
+    Write-Host "Warning: Could not reset DNS. Checking if interface name is correct..." -ForegroundColor Yellow
+    Get-NetAdapter | Select-Object Name, InterfaceAlias, Status
+}
+
 
 Write-Host "Installing Windows features..." -ForegroundColor Cyan
 
 sc.exe config "wuauserv" start=demand
 
 Get-WindowsCapability -Name RSAT* -Online | Add-windowsCapability -Online
+
 
 
