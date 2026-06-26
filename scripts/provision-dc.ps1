@@ -39,7 +39,9 @@ Write-Host "Waiting for network to stabilize..." -ForegroundColor Cyan
 Start-Sleep -Seconds 10
 
 # Configure second network adapter since first one is the Vagrant one
-$adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2"} 
+#$adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2" } 
+# Including naming network interfaces convention from Virtualbox or Vmware respectively
+$adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2" -or $_.Name -eq "Ethernet1" } 
 if ($adapter) {
     Write-Host "Network adapter found: $($adapter.Name)" -ForegroundColor Green
     

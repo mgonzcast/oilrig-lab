@@ -21,7 +21,8 @@ try {
 
 # Configure second network adapter since first one is the Vagrant one
 Write-Host "Configuring network adapter..." -ForegroundColor Cyan
-$adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2"} 
+# Including naming network interfaces convention from Virtualbox or Vmware respectively
+$adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2" -or $_.Name -eq "Ethernet1" }  
 if ($adapter) {
     Write-Host "Network adapter found: $($adapter.Name)" -ForegroundColor Green
 
@@ -45,7 +46,7 @@ if ($adapter) {
 
 Write-Host "Setting DNS for Vagrant NIC..." -ForegroundColor Yellow
 # Set DNS the Vagrant NIC to our DC so no request goes to the Internet through NAT
-$adapterVagrant = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet"} 
+$adapterVagrant = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet" -or $_.Name -eq "Ethernet0" } 
 Set-DnsClientServerAddress -InterfaceIndex $adapterVagrant.ifIndex -ServerAddresses $DCAddress
 
 # Wait for DC to be available

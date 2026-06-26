@@ -9,6 +9,7 @@ $DCAddress = "10.1.0.4"
 $ClientIPAddress = "10.1.0.5"
 $DomainAdmin = "BOOMBOX\Administrator"
 $DomainPassword = "vagrant"
+#$DomainPassword = "Password_12345"
 
 # Disable Windows Defender
 Write-Host "Disabling Windows Defender..." -ForegroundColor Cyan
@@ -19,9 +20,14 @@ try {
     Write-Host "Windows Defender already disabled" -ForegroundColor Yellow
 }
 
+# Wait for network to stabilize after Vagrant configuration
+Write-Host "Waiting for network to stabilize..." -ForegroundColor Cyan
+Start-Sleep -Seconds 10
+
 # Configure second network adapter since first one is the Vagrant one
 Write-Host "Configuring network adapter..." -ForegroundColor Cyan
-$adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2"} 
+# Including naming network interfaces convention from Virtualbox or Vmware respectively
+$adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet 2" -or $_.Name -eq "Ethernet1" } 
 if ($adapter) {
     Write-Host "Network adapter found: $($adapter.Name)" -ForegroundColor Green
 
@@ -46,7 +52,8 @@ if ($adapter) {
 
 Write-Host "Setting DNS for Vagrant NIC..." -ForegroundColor Yellow
 # Set DNS the Vagrant NIC to our DC so no request goes to the Internet through NAT
-$adapterVagrant = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet"} 
+# Including naming network interfaces convention from Virtualbox or Vmware respectively
+$adapterVagrant = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet" -or $_.Name -eq "Ethernet0" } 
 Set-DnsClientServerAddress -InterfaceIndex $adapterVagrant.ifIndex -ServerAddresses $DCAddress
 
 netsh.exe advfirewall set allprofiles state off

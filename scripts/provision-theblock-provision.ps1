@@ -8,8 +8,9 @@ $DomainName = "boombox.com"
 $DCAddress = "10.1.0.4"
 $ClientIPAddress = "10.1.0.5"
 $DomainAdmin = "BOOMBOX\Administrator"
-$DomainPassword = "vagrant"
-$AdapterName = "Ethernet"
+#$DomainPassword = "vagrant"
+$DomainPassword = "Password_12345"
+$adapter = Get-NetAdapter | Where-Object {$_.Name -eq "Ethernet" -or $_.Name -eq "Ethernet0" } 
 
 # Wait for DC to be available
 Write-Host "Waiting for Domain Controller at $DCAddress..." -ForegroundColor Cyan
@@ -51,10 +52,10 @@ if ($computerSystem.PartOfDomain -and $computerSystem.Domain -eq $DomainName) {
 }
 
 # REVERT DNS TO DHCP so RSAT Capabilities can be installed
-Write-Host "Reverting DNS on '$AdapterName' to DHCP for internet access..." -ForegroundColor Cyan
+Write-Host "Reverting DNS on '$($adapter.Name)' to DHCP for internet access..." -ForegroundColor Cyan
 try {
     # This resets the DNS server addresses to be obtained via DHCP
-    Set-DnsClientServerAddress -InterfaceAlias $AdapterName -ResetServerAddresses -ErrorAction Stop
+    Set-DnsClientServerAddress -InterfaceAlias $($adapter.Name) -ResetServerAddresses -ErrorAction Stop
     
     # Optional: Force a DNS registration refresh
     Register-DnsClient

@@ -4,6 +4,10 @@ packer {
       source  = "github.com/hashicorp/virtualbox"
       version = "~> 1"
     }
+    vmware = {
+      source  = "github.com/hashicorp/vmware"
+      version = "~> 1"
+    }
   }
 }
 
@@ -50,7 +54,7 @@ source "virtualbox-iso" "windows-10" {
 
   chipset              = "ich9"
   hard_drive_interface = "sata"
-  headless             = false
+  headless             = true
   
   communicator         = "winrm"
   winrm_username       = "vagrant"
@@ -86,8 +90,53 @@ source "virtualbox-iso" "windows-10" {
   #guest_additions_path = "C:/Windows/Temp/windows.iso"
 }
 
+source "vmware-iso" "windows-10" {
+  guest_os_type    = "windows10-64"
+  iso_url          = var.iso_url
+  iso_checksum     = var.iso_checksum
+  
+  vm_name          = var.vm_name
+  cpus             = var.cpus
+  memory           = var.memory
+  disk_size        = var.disk_size
+
+  headless         = false
+  
+  communicator     = "winrm"
+  winrm_username   = "vagrant"
+  winrm_password   = "vagrant"
+  winrm_timeout    = "12h"
+  winrm_use_ssl    = false
+  winrm_insecure   = true
+  
+  boot_wait        = "5m"
+  
+  shutdown_command = "shutdown /s /t 10 /f /d p:4:1 /c \"Packer Shutdown\""
+  shutdown_timeout = "8m"
+  
+  floppy_files = [
+    "win10/autounattend.xml",
+    "scripts/setup-winrm.ps1",
+    "win10/unattend.xml",
+    "scripts/PackerShutdown.bat"
+  ]
+  
+  network_adapter_type  = "e1000"
+  disk_adapter_type     = "lsisas1068"
+  sound                 = false
+  usb                   = false
+  
+  # We upload the ISO of VMware Tools
+    tools_mode = "upload"   
+  tools_upload_flavor  = "windows"
+  tools_upload_path = "C:\\Windows\\Temp\\windows.iso"
+}
+
 build {
-  sources = ["source.virtualbox-iso.windows-10"]
+  sources = [
+    "source.virtualbox-iso.windows-10",
+    "source.vmware-iso.windows-10"
+  ]
     
   # Disable Windows Update Service
   provisioner "powershell" {
@@ -123,19 +172,24 @@ build {
     ]
   }
   
-  # Disable telemetry and other privacy concerns
-  #provisioner "powershell" {
-  #  inline = [
-  #    "Write-Host 'Disabling telemetry and privacy features...'",
-  #    "# Disable telemetry",
-  #    "New-Item -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection' -Force | Out-Null",
-  #    "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection' -Name 'AllowTelemetry' -Value 0 -Type DWord",
-  #    "# Disable Cortana",
-  #    "New-Item -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search' -Force | Out-Null",
-  #    "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search' -Name 'AllowCortana' -Value 0 -Type DWord",
-  #    "Write-Host 'Privacy features disabled'"
-  #  ]
-  #}
+  provisioner "powershell" {
+    only = ["vmware-iso.windows-10"]
+    inline = [
+      "Write-Host 'Mounting VMware Tools ISO...'",
+      "$mountResult = Mount-DiskImage -ImagePath 'C:\\Windows\\Temp\\windows.iso' -PassThru",
+      "$vol = $mountResult | Get-Volume",
+      
+      # We construct the path this way to avoid Packer HCL interpolation errors with ${...}
+      "$installer = ($vol.DriveLetter + ':\\setup.exe')",
+      
+      "Write-Host \"Installing VMware Tools silently from $installer...\"",
+      "Start-Process -FilePath $installer -ArgumentList '/s /v\"/qn REBOOT=R\"' -Wait",
+      
+      "Write-Host 'Unmounting and cleaning up ISO...'",
+      "Dismount-DiskImage -ImagePath 'C:\\Windows\\Temp\\windows.iso' | Out-Null",
+      "Remove-Item -Path 'C:\\Windows\\Temp\\windows.iso' -Force"
+    ]
+  }
   
   # Cleanup
   provisioner "powershell" {
@@ -151,16 +205,20 @@ build {
     ]
   }
   
-  # REBOOT: Forces a reboot and waits for WinRM reconnection
-  provisioner "windows-restart" {}
-  
-  provisioner "powershell" {
-  script = "scripts/save_shutdown.ps1" 
+
+    post-processor "vagrant" {
+    provider_override   = "virtualbox"
+    output              = "windows-10-ltsc-17763-virtualbox.box"
+    keep_input_artifact = false
+    only                = ["virtualbox-iso.windows-10"]
   }
-  
-  # Post-Processor Settings for Vagrant
+
+  # Post-Processor Settings for Vagrant - VMware
   post-processor "vagrant" {
-    output               = "windows-10-ltsc-17763-{{.Provider}}.box"
+    output               = "windows-10-ltsc-17763-vmware.box"
     keep_input_artifact  = false
+    only                 = ["vmware-iso.windows-10"]
+    provider_override    = "vmware"    
+  
   }
 }

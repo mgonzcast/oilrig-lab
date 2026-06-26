@@ -5,6 +5,10 @@
       version = ">=1.0.0"
       source  = "github.com/hashicorp/virtualbox"
     }
+    vmware = {
+      source  = "github.com/hashicorp/vmware"
+      version = "~> 1"
+    }
   }
 }
 
@@ -49,9 +53,7 @@ source "virtualbox-iso" "windows-server-2019" {
   cpus                 = var.cpus
   memory               = var.memory
   disk_size            = var.disk_size
-
-  chipset              = "ich9"
-  hard_drive_interface = "sata"
+  
   headless             = false
   
   communicator         = "winrm"
@@ -97,8 +99,56 @@ source "virtualbox-iso" "windows-server-2019" {
   #guest_additions_path = "C:/Windows/Temp/windows.iso"
 }
 
-  build {
-  sources = ["source.virtualbox-iso.windows-server-2019"]    
+source "vmware-iso" "windows-server-2019" {
+  guest_os_type = "windows2019srv-64"
+  iso_url       = var.iso_url
+  iso_checksum  = var.iso_checksum
+  
+  vm_name  = var.vm_name
+  cpus     = var.cpus
+  memory   = var.memory
+  disk_size = var.disk_size
+  
+  headless = false
+  
+  communicator     = "winrm"
+  winrm_username   = "vagrant"
+  winrm_password   = "vagrant"
+  winrm_timeout    = "12h"
+  winrm_use_ssl    = false
+  winrm_insecure   = true
+  
+  boot_wait = "5m"
+  
+  shutdown_command = "A:/PackerShutdown.bat"
+  shutdown_timeout = "15m"
+  
+  floppy_files = [
+    "winserver2019/autounattend.xml",
+    "scripts/PackerShutdown.bat",
+    "winserver2019/unattend.xml",
+    "scripts/setup-winrm.ps1"
+  ]
+  
+  network_adapter_type = "e1000"
+  disk_adapter_type    = "lsisas1068"
+  sound                = false
+  usb                  = false
+
+   
+  # We upload the ISO of VMware Tools
+  tools_mode = "upload"  
+  tools_upload_flavor  = "windows"
+  tools_upload_path = "C:\\Windows\\Temp\\windows.iso"
+  
+}
+
+build {
+  sources = [
+    "source.virtualbox-iso.windows-server-2019",
+    "source.vmware-iso.windows-server-2019"
+  ]
+
   
   # Disable Windows Update Service
   provisioner "powershell" {
@@ -116,6 +166,25 @@ source "virtualbox-iso" "windows-server-2019" {
       "Uninstall-WindowsFeature -Name Windows-Defender"
     ]
   } 
+  
+  provisioner "powershell" {
+    only = ["vmware-iso.windows-server-2019"]
+    inline = [
+      "Write-Host 'Mounting VMware Tools ISO...'",
+      "$mountResult = Mount-DiskImage -ImagePath 'C:\\Windows\\Temp\\windows.iso' -PassThru",
+      "$vol = $mountResult | Get-Volume",
+      
+      # We construct the path this way to avoid Packer HCL interpolation errors with ${...}
+      "$installer = ($vol.DriveLetter + ':\\setup.exe')",
+      
+      "Write-Host \"Installing VMware Tools silently from $installer...\"",
+      "Start-Process -FilePath $installer -ArgumentList '/s /v\"/qn REBOOT=R\"' -Wait",
+      
+      "Write-Host 'Unmounting and cleaning up ISO...'",
+      "Dismount-DiskImage -ImagePath 'C:\\Windows\\Temp\\windows.iso' | Out-Null",
+      "Remove-Item -Path 'C:\\Windows\\Temp\\windows.iso' -Force"
+    ]
+  }
      
   # REBOOT: Forces a reboot and waits for WinRM reconnection
   provisioner "windows-restart" {}
@@ -145,9 +214,22 @@ source "virtualbox-iso" "windows-server-2019" {
     ]
   }
     
-  post-processor "vagrant" {
-    output               = "windows-server-2019-{{.Provider}}.box"
+  # Post-Processor Settings for Vagrant - VirtualBox
+
+   post-processor "vagrant" {
+    provider_override   = "virtualbox"
+    output               = "windows-server-2019-virtualbox.box"
     keep_input_artifact  = false
-    #vagrantfile_template = "windows-server-2019.template"
+    only                 = ["virtualbox-iso.windows-server-2019"]
+   
+  }
+
+    # Post-Processor Settings for Vagrant - VMware
+  post-processor "vagrant" {
+
+    provider_override    = "vmware"
+    output               = "windows-server-2019-vmware.box"
+    keep_input_artifact  = false
+    only                 = ["vmware-iso.windows-server-2019"]
   }
 }
